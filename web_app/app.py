@@ -55,7 +55,7 @@ def load_model_bundle(city: str):
     local_path = f"/tmp/aqi_model_bundle_{city}.joblib"
     client = storage.Client(project=GCP_PROJECT_ID)
     bucket = client.bucket(GCS_BUCKET)
-    blob = bucket.blob(f"aqi_forecast_{city}/aqi_model_bundle_{city}.joblib")
+    blob = bucket.blob(f"aqi_forecast_{city}/model.joblib")
     blob.download_to_filename(local_path)
     return joblib.load(local_path)
 

@@ -154,7 +154,7 @@ def train_city(city: str):
         return
 
     avg_rmse = float(np.mean([s["rmse"] for s in best_scores.values()]))
-    blob_name = f"aqi_forecast_{city}/aqi_model_bundle_{city}.joblib"
+    blob_name = f"aqi_forecast_{city}/model.joblib"
     upload_to_gcs(bundle_path, GCS_BUCKET, blob_name)
 
     gcs_dir_uri = f"gs://{GCS_BUCKET}/aqi_forecast_{city}"
