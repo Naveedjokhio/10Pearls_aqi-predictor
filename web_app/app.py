@@ -291,6 +291,11 @@ def main():
     forecast_vals = {}
     for horizon, model in models.items():
         pred = float(model.predict(X_latest)[0])
+        # Safety clip: with a small training set and a live feature row that
+        # can differ noticeably from the (partly synthetic-zero) backfilled
+        # training distribution, models can occasionally extrapolate to
+        # unrealistic values. AQI is only ever defined in [0, 500].
+        pred = max(0.0, min(500.0, pred))
         forecast_vals[horizon] = pred
 
     forecast_df = pd.DataFrame({
