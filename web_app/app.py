@@ -15,6 +15,7 @@ import os
 import sys
 import joblib
 import shap
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -289,13 +290,14 @@ def main():
     st.write("")
     st.subheader("📈 Next 3 Days Forecast")
     forecast_vals = {}
-    for horizon, model in models.items():
-        pred = float(model.predict(X_latest)[0])
-        # Safety clip: with a small training set and a live feature row that
-        # can differ noticeably from the (partly synthetic-zero) backfilled
-        # training distribution, models can occasionally extrapolate to
-        # unrealistic values. AQI is only ever defined in [0, 500].
-        pred = max(0.0, min(500.0, pred))
+    for horizon, horizon_models in models.items():
+        # Combine all trained candidates for this horizon using the median
+        # prediction. This is robust to any single model (particularly the
+        # neural net, which can extrapolate poorly on live feature rows
+        # that differ from the training distribution) producing an outlier.
+        preds = [float(m.predict(X_latest)[0]) for m in horizon_models.values()]
+        pred = float(np.median(preds))
+        pred = max(0.0, min(500.0, pred))  # AQI is only ever defined in [0, 500]
         forecast_vals[horizon] = pred
 
     forecast_df = pd.DataFrame({
@@ -319,12 +321,27 @@ def main():
         st.success("No hazardous AQI levels predicted in the next 3 days.")
 
     with st.expander("📊 Model Performance (on holdout data)"):
-        perf_df = pd.DataFrame(scores).T
+        rows = []
+        for horizon, horizon_scores in scores.items():
+            for model_name, metrics in horizon_scores.items():
+                rows.append({"Horizon": horizon, "Model": model_name, **metrics})
+        perf_df = pd.DataFrame(rows).set_index(["Horizon", "Model"])
         st.dataframe(perf_df.style.format("{:.2f}"), use_container_width=True)
 
     st.subheader("🔍 What's driving the Day 1 prediction?")
     try:
-        day1_model = models["day1"]
+        # models["day1"] is now a dict of all trained candidates for that
+        # horizon. Prefer RandomForest for the explanation (tree-based
+        # models give the most stable, easy-to-read SHAP importances);
+        # fall back to whichever candidate is available.
+        day1_candidates = models["day1"]
+        for preferred in ["RandomForest", "Ridge", "NeuralNet (TensorFlow)"]:
+            if preferred in day1_candidates:
+                day1_model = day1_candidates[preferred]
+                break
+        else:
+            day1_model = next(iter(day1_candidates.values()))
+
         if hasattr(day1_model, "estimators_"):
             explainer = shap.TreeExplainer(day1_model)
             shap_values = explainer.shap_values(X_latest)
