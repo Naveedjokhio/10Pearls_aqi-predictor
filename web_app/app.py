@@ -163,6 +163,10 @@ def render_city_overview_strip(current_city: str):
 
 def render_forecast_chart(city_display: str, forecast_df: pd.DataFrame):
     colors = [classify_aqi(v)[1] for v in forecast_df["AQI"]]
+    # Keep the last point's label anchored to its left so it can't be
+    # clipped by the right edge of the chart.
+    n = len(forecast_df)
+    text_positions = ["top center"] * (n - 1) + ["middle left"]
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -171,10 +175,11 @@ def render_forecast_chart(city_display: str, forecast_df: pd.DataFrame):
         line=dict(color="#FF5722", width=3),
         marker=dict(size=14, color=colors, line=dict(width=2, color="white")),
         text=[f"{v:.0f}" for v in forecast_df["AQI"]],
-        textposition="top center",
+        textposition=text_positions,
         textfont=dict(size=14, color="#FAFAFA"),
         fill="tozeroy",
         fillcolor="rgba(255,87,34,0.08)",
+        cliponaxis=False,
     ))
     fig.update_layout(
         title=f"{city_display} AQI Forecast",
@@ -183,12 +188,10 @@ def render_forecast_chart(city_display: str, forecast_df: pd.DataFrame):
         paper_bgcolor="#0E1117",
         font=dict(color="#FAFAFA"),
         height=380,
-        margin=dict(t=60, b=40, l=40, r=100),
+        margin=dict(t=60, b=40, l=40, r=40),
         yaxis_title="AQI",
-        xaxis=dict(range=[-0.3, 3.3]),
         showlegend=False,
     )
-    fig.update_traces(cliponaxis=False)
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -312,9 +315,17 @@ def main():
     st.subheader("🔍 What's driving the Day 1 prediction?")
     try:
         day1_model = models["day1"]
-        explainer = shap.TreeExplainer(day1_model) if hasattr(day1_model, "estimators_") \
-            else shap.LinearExplainer(day1_model, X_latest)
-        shap_values = explainer.shap_values(X_latest)
+        if hasattr(day1_model, "estimators_"):
+            explainer = shap.TreeExplainer(day1_model)
+            shap_values = explainer.shap_values(X_latest)
+        elif hasattr(day1_model, "coef_"):
+            explainer = shap.LinearExplainer(day1_model, X_latest)
+            shap_values = explainer.shap_values(X_latest)
+        else:
+            # Neural net or any other model type without a specialized
+            # SHAP explainer - fall back to the general-purpose KernelExplainer.
+            explainer = shap.KernelExplainer(day1_model.predict, X_latest)
+            shap_values = explainer.shap_values(X_latest, nsamples=100)
         render_shap_chart(shap_values, FEATURE_COLS)
     except Exception as e:
         st.info(f"SHAP explanation unavailable for this model type: {e}")

@@ -4,8 +4,9 @@ Training Pipeline for AQI Predictor (Pakistan - Top 6 Cities)
 For each city:
 1. Fetches historical (features, target) rows from the Feature Store (BigQuery)
 2. Builds 3-day-ahead targets (aqi_day1, aqi_day2, aqi_day3)
-3. Trains Ridge Regression and Random Forest models
-4. Evaluates with RMSE, MAE, R2
+3. Trains Ridge Regression, Random Forest, and a small TensorFlow/Keras
+   neural network - statistical to deep learning, per the project brief
+4. Evaluates with RMSE, MAE, R2 and keeps the best model per horizon
 5. Uploads the best model bundle to GCS and registers it in the
    Vertex AI Model Registry (one registry entry per city)
 
@@ -14,6 +15,9 @@ Run:  python training_pipeline/train_model.py
 
 import os
 import sys
+
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")  # silence TF's noisy logs
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -32,6 +36,81 @@ GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCS_BUCKET = os.getenv("GCS_BUCKET")
 HORIZONS = {"day1": 1, "day2": 2, "day3": 3}
 MODEL_DIR = "training_pipeline/artifacts"
+
+
+class KerasMLPRegressor:
+    """Minimal sklearn-style wrapper around a small TensorFlow/Keras MLP,
+    so it can be trained/evaluated alongside Ridge and Random Forest using
+    the same .fit()/.predict() interface, and safely joblib-pickled.
+
+    Only plain numpy weight arrays are pickled (not the TF graph/session),
+    which avoids the serialization issues that come with pickling Keras
+    models directly.
+    """
+
+    def __init__(self, input_dim, epochs=80, batch_size=8, random_state=42):
+        self.input_dim = input_dim
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.random_state = random_state
+        self._weights = None
+        self._mean = None
+        self._std = None
+        self._model = None  # built lazily, never pickled
+
+    def _build(self):
+        import tensorflow as tf
+        from tensorflow import keras
+
+        tf.random.set_seed(self.random_state)
+        model = keras.Sequential([
+            keras.layers.Input(shape=(self.input_dim,)),
+            keras.layers.Dense(32, activation="relu"),
+            keras.layers.Dense(16, activation="relu"),
+            keras.layers.Dense(1),
+        ])
+        model.compile(optimizer="adam", loss="mse")
+        return model
+
+    def fit(self, X, y):
+        X = np.asarray(X, dtype="float32")
+        y = np.asarray(y, dtype="float32")
+
+        self._mean = X.mean(axis=0)
+        self._std = X.std(axis=0)
+        self._std[self._std == 0] = 1.0
+        X_scaled = (X - self._mean) / self._std
+
+        # Scale the target too - AQI values range roughly 0-300+, and
+        # training MSE loss directly on that raw scale was destabilizing
+        # the network (exploding loss / poor convergence on small datasets).
+        self._y_mean = y.mean()
+        self._y_std = y.std() if y.std() > 0 else 1.0
+        y_scaled = (y - self._y_mean) / self._y_std
+
+        model = self._build()
+        model.fit(X_scaled, y_scaled, epochs=self.epochs, batch_size=self.batch_size, verbose=0)
+        self._weights = model.get_weights()
+        self._model = model
+        return self
+
+    def predict(self, X):
+        X = np.asarray(X, dtype="float32")
+        X_scaled = (X - self._mean) / self._std
+        if self._model is None:
+            self._model = self._build()
+            self._model.set_weights(self._weights)
+        preds_scaled = self._model.predict(X_scaled, verbose=0).flatten()
+        return preds_scaled * self._y_std + self._y_mean
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_model"] = None  # never pickle the live TF model object
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._model = None
 
 
 def load_training_data(city: str) -> pd.DataFrame:
@@ -128,6 +207,7 @@ def train_city(city: str):
             "RandomForest": RandomForestRegressor(
                 n_estimators=200, max_depth=8, random_state=42
             ),
+            "NeuralNet (TensorFlow)": KerasMLPRegressor(input_dim=X_train.shape[1]),
         }
 
         results = {}
@@ -154,6 +234,8 @@ def train_city(city: str):
         return
 
     avg_rmse = float(np.mean([s["rmse"] for s in best_scores.values()]))
+    # Vertex AI's prebuilt sklearn container requires the artifact file to
+    # be named exactly "model.joblib" (or "model.pkl") inside its directory.
     blob_name = f"aqi_forecast_{city}/model.joblib"
     upload_to_gcs(bundle_path, GCS_BUCKET, blob_name)
 
