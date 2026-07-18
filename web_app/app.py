@@ -22,6 +22,11 @@ from dotenv import load_dotenv
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from feature_pipeline.fetch_features import get_bq_client, get_table_ref, CITIES, FEATURE_COLS
+# Imported (even though not called directly) so that joblib can resolve
+# this class by name when unpickling a model bundle that contains a
+# NeuralNet model - without this import, unpickling fails with
+# "Can't get attribute 'KerasMLPRegressor'".
+from training_pipeline.model_wrapper import KerasMLPRegressor  # noqa: F401
 
 load_dotenv()
 
