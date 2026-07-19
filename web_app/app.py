@@ -31,7 +31,7 @@ from training_pipeline.model_wrapper import KerasMLPRegressor  # noqa: F401
 
 load_dotenv()
 
-st.set_page_config(page_title="Pearls AQI Predictor - Pakistan", page_icon="🌫️", layout="wide")
+st.set_page_config(page_title="Pearls AQI Predictor - Pakistan", page_icon="🌍", layout="wide")
 
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCS_BUCKET = os.getenv("GCS_BUCKET")
@@ -227,7 +227,7 @@ def render_shap_chart(shap_values, feature_names):
 def main():
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-    st.title("🌫️ Pearls AQI Predictor — Pakistan")
+    st.title("🌍 Pearls AQI Predictor — Pakistan")
     st.caption("3-day Air Quality Index forecast for major Pakistani cities, "
                "powered by Vertex AI (BigQuery Feature Store + Model Registry) and SHAP")
 
