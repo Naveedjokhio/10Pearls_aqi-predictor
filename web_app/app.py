@@ -266,7 +266,7 @@ def main():
     current_aqi = latest_row["aqi"]
     label, color = classify_aqi(current_aqi)
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.markdown(f"""
         <div class="metric-card">
@@ -281,6 +281,18 @@ def main():
             <div class="metric-value">{latest_row['pm25']:.1f}</div>
         </div>""", unsafe_allow_html=True)
     with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Temperature</div>
+            <div class="metric-value">{latest_row['temperature']:.0f}°C</div>
+        </div>""", unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <div class="metric-label">Humidity / Wind</div>
+            <div class="metric-value" style="font-size:1.3rem;">{latest_row['humidity']:.0f}% · {latest_row['wind_speed']:.1f} m/s</div>
+        </div>""", unsafe_allow_html=True)
+    with col5:
         st.markdown(f"""
         <div class="metric-card">
             <div class="metric-label">Last Updated</div>
