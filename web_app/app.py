@@ -241,6 +241,15 @@ def main():
 
     st.markdown("##### All Cities — Current AQI")
     render_city_overview_strip(city)
+
+    snapshot = load_all_cities_snapshot()
+    if not snapshot.empty and city in snapshot["city"].values:
+        ranked = snapshot.sort_values("aqi").reset_index(drop=True)
+        rank = int(ranked[ranked["city"] == city].index[0]) + 1
+        total = len(ranked)
+        suffix = "th" if 11 <= rank % 100 <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(rank % 10, "th")
+        st.caption(f"🏆 {selected_display} is currently the **{rank}{suffix} cleanest** of {total} cities tracked.")
+
     st.divider()
 
     with st.spinner(f"Loading latest data and model for {selected_display}..."):
@@ -317,6 +326,34 @@ def main():
         "AQI": [current_aqi, forecast_vals["day1"], forecast_vals["day2"], forecast_vals["day3"]],
     })
     render_forecast_chart(selected_display, forecast_df)
+
+    # --- Forecast confidence per horizon, derived from each horizon's
+    # model R2 scores (median across the 3 candidate models, consistent
+    # with the median-ensemble prediction approach). ---
+    def confidence_label(horizon_scores):
+        r2_values = [m["r2"] for m in horizon_scores.values()]
+        median_r2 = float(np.median(r2_values))
+        if median_r2 >= 0.5:
+            return "High confidence", "#4CAF50"
+        elif median_r2 >= 0.2:
+            return "Moderate confidence", "#FFC107"
+        else:
+            return "Low confidence", "#F44336"
+
+    conf_cols = st.columns(3)
+    for i, horizon in enumerate(["day1", "day2", "day3"]):
+        conf_label, conf_color = confidence_label(scores[horizon])
+        with conf_cols[i]:
+            st.markdown(
+                f"""<div style="text-align:center; padding:6px; color:{conf_color}; font-size:0.85rem;">
+                Day {i+1}: {conf_label}</div>""", unsafe_allow_html=True)
+
+    # --- Best day to go outside: lowest predicted AQI among the 3 forecast days ---
+    future_days = forecast_df.iloc[1:].reset_index(drop=True)
+    best_idx = future_days["AQI"].idxmin()
+    best_day = future_days.loc[best_idx, "Day"]
+    best_aqi = future_days.loc[best_idx, "AQI"]
+    st.info(f"🌤️ Best air quality expected: **{best_day}** (AQI {best_aqi:.0f})")
 
     st.subheader("⚠️ Alerts")
     any_hazard = False
