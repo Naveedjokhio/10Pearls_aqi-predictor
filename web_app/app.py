@@ -98,7 +98,25 @@ def load_model_bundle(city: str):
 
 
 @st.cache_data(ttl=600)
-def load_latest_features(city: str):
+def load_recent_readings(city: str, limit: int = 20):
+    """Recent readings for the raw-data table view (separate from
+    load_latest_features, which only pulls the single latest row used for
+    prediction)."""
+    client = get_bq_client()
+    query = f"""
+        SELECT event_time, {", ".join(FEATURE_COLS)}
+        FROM `{get_table_ref()}`
+        WHERE city = @city
+        ORDER BY event_time DESC
+        LIMIT {limit}
+    """
+    from google.cloud import bigquery
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ScalarQueryParameter("city", "STRING", city)]
+    )
+    df = client.query(query, job_config=job_config).to_dataframe()
+    df["event_time"] = pd.to_datetime(df["event_time"])
+    return df.sort_values("event_time", ascending=False).reset_index(drop=True)
     client = get_bq_client()
     query = f"""
         SELECT event_time, {", ".join(FEATURE_COLS)}
@@ -405,6 +423,21 @@ def main():
         render_shap_chart(shap_values, FEATURE_COLS)
     except Exception as e:
         st.info(f"SHAP explanation unavailable for this model type: {e}")
+
+    st.subheader("🗂️ Latest Sensor Readings")
+    recent_df = load_recent_readings(city, limit=20)
+    if not recent_df.empty:
+        display_cols = ["event_time", "aqi", "pm25", "pm10", "o3", "no2", "so2", "co",
+                         "temperature", "humidity", "wind_speed"]
+        st.dataframe(recent_df[display_cols], use_container_width=True, hide_index=True)
+
+        csv_bytes = recent_df[display_cols].to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="⬇️ Download CSV",
+            data=csv_bytes,
+            file_name=f"{city}_aqi_readings.csv",
+            mime="text/csv",
+        )
 
     st.caption("Data source: OpenWeather Air Pollution API | Feature Store: BigQuery | Model Registry: Vertex AI")
 
