@@ -117,6 +117,10 @@ def load_recent_readings(city: str, limit: int = 20):
     df = client.query(query, job_config=job_config).to_dataframe()
     df["event_time"] = pd.to_datetime(df["event_time"])
     return df.sort_values("event_time", ascending=False).reset_index(drop=True)
+
+
+@st.cache_data(ttl=600)
+def load_latest_features(city: str):
     client = get_bq_client()
     query = f"""
         SELECT event_time, {", ".join(FEATURE_COLS)}
