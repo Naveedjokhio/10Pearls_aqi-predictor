@@ -1,22 +1,7 @@
-"""
-Training Pipeline for AQI Predictor (Pakistan - Top 6 Cities)
---------------------------------------------------------------------
-For each city:
-1. Fetches historical (features, target) rows from the Feature Store (BigQuery)
-2. Builds 3-day-ahead targets (aqi_day1, aqi_day2, aqi_day3)
-3. Trains Ridge Regression, Random Forest, and a small TensorFlow/Keras
-   neural network - statistical to deep learning, per the project brief
-4. Evaluates with RMSE, MAE, R2 and keeps the best model per horizon
-5. Uploads the best model bundle to GCS and registers it in the
-   Vertex AI Model Registry (one registry entry per city)
-
-Run:  python training_pipeline/train_model.py
-"""
-
 import os
 import sys
 
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")  # silence TF's noisy logs
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")  
 
 import joblib
 import numpy as np
@@ -146,12 +131,6 @@ def train_city(city: str):
         best_name = min(results, key=lambda n: results[n][1]["rmse"])
         print(f"    -> Best for {horizon_name}: {best_name}")
 
-        # Save ALL trained candidates (not just the single best), so the
-        # dashboard can combine their predictions (median) at inference
-        # time. This guards against any one model - especially the neural
-        # net, which can extrapolate wildly on live feature rows that
-        # differ from the training distribution - producing an unrealistic
-        # single-model prediction.
         best_models[horizon_name] = {name: trained for name, (trained, _) in results.items()}
         best_scores[horizon_name] = {name: metrics for name, (_, metrics) in results.items()}
 
@@ -166,14 +145,12 @@ def train_city(city: str):
         print("  GCS_BUCKET not set in .env - skipping Model Registry upload.")
         return
 
-    # Average RMSE across horizons, using each horizon's best-performing
-    # candidate (for registry metadata/reporting purposes only).
+    
     avg_rmse = float(np.mean([
         min(m["rmse"] for m in horizon_scores.values())
         for horizon_scores in best_scores.values()
     ]))
-    # Vertex AI's prebuilt sklearn container requires the artifact file to
-    # be named exactly "model.joblib" (or "model.pkl") inside its directory.
+    
     blob_name = f"aqi_forecast_{city}/model.joblib"
     upload_to_gcs(bundle_path, GCS_BUCKET, blob_name)
 

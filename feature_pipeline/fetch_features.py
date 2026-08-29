@@ -1,19 +1,3 @@
-"""
-Feature Pipeline for AQI Predictor (Pakistan - Top 6 Cities)
-----------------------------------------------------------------
-1. Fetches raw weather + pollution data from OpenWeather for each city
-   (AQICN has no active ground station for Karachi/Sindh - confirmed via
-   their map/bounds API returning zero stations - so OpenWeather is used,
-   the other API explicitly allowed by the project instructions)
-2. Computes time-based and derived features, and a US EPA AQI from
-   pollutant concentrations
-3. Stores the features in the Feature Store (BigQuery, backing Vertex AI),
-   one row per city per run
-
-Run manually:  python feature_pipeline/fetch_features.py
-Run backfill:  python feature_pipeline/backfill.py
-"""
-
 import os
 import sys
 import requests
@@ -28,7 +12,6 @@ load_dotenv()
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
 
-# Top 6 Pakistani cities by population / relevance, with coordinates
 CITIES = {
     "karachi": (24.8607, 67.0011),
     "lahore": (31.5497, 74.3436),

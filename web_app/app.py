@@ -1,16 +1,3 @@
-"""
-Streamlit Dashboard for AQI Predictor (Pakistan - Top 6 Cities)
---------------------------------------------------------------------
-Lets the user select a city, loads its latest features from the Feature
-Store (BigQuery) and its model bundle from GCS (registered in the Vertex AI
-Model Registry), then shows a 3-day AQI forecast with SHAP feature
-importance and hazard alerts.
-
-Run locally:  streamlit run web_app/app.py
-Deployed:     Google Cloud Run (serverless) - authenticates automatically
-              via the attached service account, no key file needed.
-"""
-
 import os
 import sys
 import joblib
@@ -23,20 +10,17 @@ from dotenv import load_dotenv
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from feature_pipeline.fetch_features import get_bq_client, get_table_ref, CITIES, FEATURE_COLS
-# Imported (even though not called directly) so that joblib can resolve
-# this class by name when unpickling a model bundle that contains a
-# NeuralNet model - without this import, unpickling fails with
-# "Can't get attribute 'KerasMLPRegressor'".
+
 from training_pipeline.model_wrapper import KerasMLPRegressor  # noqa: F401
 
 load_dotenv()
 
-st.set_page_config(page_title="Pearls AQI Predictor - Pakistan", page_icon="🌍", layout="wide")
+st.set_page_config(page_title="10Pearls AQI Predictor For Pakistan's Cities", page_icon="❄️", layout="wide")
 
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 GCS_BUCKET = os.getenv("GCS_BUCKET")
 
-# (low, high, label, color)
+
 AQI_BANDS = [
     (0, 50, "Good", "#4CAF50"),
     (51, 100, "Moderate", "#FFC107"),
@@ -140,9 +124,7 @@ def load_latest_features(city: str):
 
 @st.cache_data(ttl=600)
 def load_all_cities_snapshot():
-    """One current AQI reading per city, for the overview strip at the top.
-    Uses a single lightweight query (latest row per city) instead of
-    fetching each city's full history."""
+
     client = get_bq_client()
     query = f"""
         SELECT city, aqi
@@ -191,8 +173,7 @@ def render_city_overview_strip(current_city: str):
 
 def render_forecast_chart(city_display: str, forecast_df: pd.DataFrame):
     colors = [classify_aqi(v)[1] for v in forecast_df["AQI"]]
-    # Keep the last point's label anchored to its left so it can't be
-    # clipped by the right edge of the chart.
+
     n = len(forecast_df)
     text_positions = ["top center"] * (n - 1) + ["middle left"]
 
@@ -249,9 +230,8 @@ def render_shap_chart(shap_values, feature_names):
 def main():
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-    st.title("🌍 Pearls AQI Predictor — Pakistan")
-    st.caption("3-day Air Quality Index forecast for major Pakistani cities, "
-               "powered by Vertex AI (BigQuery Feature Store + Model Registry) and SHAP")
+    st.title("❄️ 10Pearls AQI Predictor For Pakistan's Cities")
+    st.caption("3 day Air Quality Index forecast for major Pakistani cities ")
 
     city_display_names = {c: c.title() for c in CITIES}
     selected_display = st.selectbox(
@@ -261,7 +241,7 @@ def main():
     )
     city = [k for k, v in city_display_names.items() if v == selected_display][0]
 
-    st.markdown("##### All Cities — Current AQI")
+    st.markdown("##### All Cities Current AQI")
     render_city_overview_strip(city)
 
     snapshot = load_all_cities_snapshot()
@@ -334,13 +314,10 @@ def main():
     st.subheader("📈 Next 3 Days Forecast")
     forecast_vals = {}
     for horizon, horizon_models in models.items():
-        # Combine all trained candidates for this horizon using the median
-        # prediction. This is robust to any single model (particularly the
-        # neural net, which can extrapolate poorly on live feature rows
-        # that differ from the training distribution) producing an outlier.
+        
         preds = [float(m.predict(X_latest)[0]) for m in horizon_models.values()]
         pred = float(np.median(preds))
-        pred = max(0.0, min(500.0, pred))  # AQI is only ever defined in [0, 500]
+        pred = max(0.0, min(500.0, pred))  
         forecast_vals[horizon] = pred
 
     forecast_df = pd.DataFrame({
@@ -349,9 +326,6 @@ def main():
     })
     render_forecast_chart(selected_display, forecast_df)
 
-    # --- Forecast confidence per horizon, derived from each horizon's
-    # model R2 scores (median across the 3 candidate models, consistent
-    # with the median-ensemble prediction approach). ---
     def confidence_label(horizon_scores):
         r2_values = [m["r2"] for m in horizon_scores.values()]
         median_r2 = float(np.median(r2_values))
@@ -370,7 +344,6 @@ def main():
                 f"""<div style="text-align:center; padding:6px; color:{conf_color}; font-size:0.85rem;">
                 Day {i+1}: {conf_label}</div>""", unsafe_allow_html=True)
 
-    # --- Best day to go outside: lowest predicted AQI among the 3 forecast days ---
     future_days = forecast_df.iloc[1:].reset_index(drop=True)
     best_idx = future_days["AQI"].idxmin()
     best_day = future_days.loc[best_idx, "Day"]
@@ -401,10 +374,6 @@ def main():
 
     st.subheader("🔍 What's driving the Day 1 prediction?")
     try:
-        # models["day1"] is now a dict of all trained candidates for that
-        # horizon. Prefer RandomForest for the explanation (tree-based
-        # models give the most stable, easy-to-read SHAP importances);
-        # fall back to whichever candidate is available.
         day1_candidates = models["day1"]
         for preferred in ["RandomForest", "Ridge", "NeuralNet (TensorFlow)"]:
             if preferred in day1_candidates:
@@ -420,8 +389,6 @@ def main():
             explainer = shap.LinearExplainer(day1_model, X_latest)
             shap_values = explainer.shap_values(X_latest)
         else:
-            # Neural net or any other model type without a specialized
-            # SHAP explainer - fall back to the general-purpose KernelExplainer.
             explainer = shap.KernelExplainer(day1_model.predict, X_latest)
             shap_values = explainer.shap_values(X_latest, nsamples=100)
         render_shap_chart(shap_values, FEATURE_COLS)

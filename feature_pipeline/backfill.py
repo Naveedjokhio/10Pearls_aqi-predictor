@@ -1,17 +1,3 @@
-"""
-Backfill script for AQI Predictor (Pakistan - Top 6 Cities)
------------------------------------------------------------------
-Uses OpenWeather's free Air Pollution History endpoint (real hourly data,
-available back to Nov 2020) to seed the Feature Store with historical rows
-for every city in CITIES.
-
-Weather fields (temp/humidity/pressure/wind) are not available historically
-on the free tier, so they are set to 0 for backfilled rows only; every row
-collected going forward via fetch_features.py has full weather data.
-
-Run:  python feature_pipeline/backfill.py
-"""
-
 import os
 import sys
 import pandas as pd

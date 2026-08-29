@@ -1,14 +1,3 @@
-"""
-EDA script for AQI Predictor (Karachi)
-------------------------------------------
-Loads historical features from the BigQuery Feature Store and produces
-plots to identify trends: daily/hourly AQI patterns, pollutant
-correlations, and seasonality.
-
-Run:  python notebooks/eda.py
-Outputs plots to notebooks/eda_outputs/
-"""
-
 import os
 import sys
 import pandas as pd

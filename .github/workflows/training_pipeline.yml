@@ -2,12 +2,12 @@ name: Training Pipeline (Daily)
 
 on:
   schedule:
-    - cron: "0 3 * * *"   # every day at 03:00 UTC
-  workflow_dispatch: {}     # allow manual trigger from GitHub UI
+    - cron: "0 3 * * *"   
+  workflow_dispatch: {}     
 
 permissions:
   contents: read
-  id-token: write   # required for Workload Identity Federation
+  id-token: write   
 
 jobs:
   run-training-pipeline:

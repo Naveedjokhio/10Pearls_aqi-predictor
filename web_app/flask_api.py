@@ -1,19 +1,3 @@
-"""
-Flask REST API for AQI Predictor (Pakistan - Top 6 Cities)
---------------------------------------------------------------
-A lightweight JSON API alongside the Streamlit dashboard, so the same
-predictions/features are also available programmatically (e.g. for other
-apps, mobile clients, or automated checks) - not just through the UI.
-
-Endpoints:
-  GET /api/cities                - list of supported cities
-  GET /api/aqi/<city>             - current AQI + latest pollutant readings
-  GET /api/forecast/<city>        - 3-day AQI forecast (median of all
-                                     trained models per horizon)
-
-Run locally:  python web_app/flask_api.py
-"""
-
 import os
 import sys
 import joblib
@@ -106,7 +90,7 @@ def forecast(city):
         return jsonify({"error": f"Could not load model for {city}: {e}"}), 500
 
     X_latest = pd.DataFrame([row[FEATURE_COLS]])
-    models = bundle["models"]  # {horizon: {model_name: model}}
+    models = bundle["models"] 
 
     result = {"city": city, "current_aqi": float(row["aqi"])}
     for horizon, horizon_models in models.items():

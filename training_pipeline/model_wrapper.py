@@ -1,26 +1,7 @@
-"""
-Shared model wrapper classes for the AQI Predictor.
-------------------------------------------------------
-IMPORTANT: This class must live in its own importable module (not inside
-train_model.py run as a script) so that joblib-pickled model bundles can
-be unpickled consistently in other contexts (e.g. the Streamlit dashboard
-running as web_app/app.py, or Cloud Run). If a class is defined inside a
-script that's executed directly (`python train_model.py`), Python records
-its module as "__main__", which breaks unpickling anywhere else.
-"""
-
 import numpy as np
 
 
 class KerasMLPRegressor:
-    """Minimal sklearn-style wrapper around a small TensorFlow/Keras MLP,
-    so it can be trained/evaluated alongside Ridge and Random Forest using
-    the same .fit()/.predict() interface, and safely joblib-pickled.
-
-    Only plain numpy weight arrays are pickled (not the TF graph/session),
-    which avoids the serialization issues that come with pickling Keras
-    models directly.
-    """
 
     def __init__(self, input_dim, epochs=80, batch_size=8, random_state=42):
         self.input_dim = input_dim
@@ -32,7 +13,7 @@ class KerasMLPRegressor:
         self._std = None
         self._y_mean = None
         self._y_std = None
-        self._model = None  # built lazily, never pickled
+        self._model = None  
 
     def _build(self):
         import tensorflow as tf
@@ -78,7 +59,7 @@ class KerasMLPRegressor:
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state["_model"] = None  # never pickle the live TF model object
+        state["_model"] = None  
         return state
 
     def __setstate__(self, state):
