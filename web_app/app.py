@@ -231,7 +231,7 @@ def main():
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     st.title("❄️ 10Pearls AQI Predictor For Pakistan's Cities")
-    st.caption("3 day Air Quality Index forecast for major Pakistani cities ")
+    st.caption("3 day Air Quality Index forecast for Pakistan's Top Cities ")
 
     city_display_names = {c: c.title() for c in CITIES}
     selected_display = st.selectbox(
