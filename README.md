@@ -389,8 +389,3 @@ The project instructions allowed **Hopsworks or Vertex AI**. Hopsworks was initi
 
 Weather fields (temperature, humidity, pressure, wind) are **not available** on OpenWeather's free historical tier, so backfilled rows have these set to `0.0`. Every row collected going forward via the hourly pipeline has full weather data. This does not affect the AQI target itself (computed from PM2.5/PM10, both fully available historically).
 
----
-
-## 📄 License
-
-This project was developed as part of the **10Pearls University** program.
