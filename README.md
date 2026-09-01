@@ -1,6 +1,6 @@
-# 🌍 10Pearls AQI Predictor — Pakistan (Top 6 Cities)
+# 🌍 10Pearls AQI Predictor Of Pakistan's (Top 6 Cities)
 
-> End-to-end, **100% serverless** Air Quality Index (AQI) forecasting system for Pakistan's six largest cities — Karachi, Lahore, Islamabad, Faisalabad, Rawalpindi, and Peshawar. Predicts AQI for the **next 3 days** per city using machine learning (Ridge, Random Forest, TensorFlow Neural Network), with automated CI/CD pipelines, SHAP explainability, and a live Streamlit dashboard.
+> End-to-end, **100% serverless** Air Quality Index (AQI) forecasting system for Pakistan's six largest cities Karachi, Lahore, Islamabad, Faisalabad, Rawalpindi, and Peshawar. Predicts AQI for the **next 3 days** per city using machine learning (Ridge, Random Forest, TensorFlow Neural Network), with automated CI/CD pipelines, SHAP explainability, and a live Streamlit dashboard.
 
 ---
 
@@ -11,7 +11,7 @@
 | **Dashboard (Streamlit)** | [aqi-predictor-dashboard](https://aqi-predictor-dashboard-444682761540.asia-south1.run.app) |
 
 
-Both services are deployed on **Google Cloud Run** — publicly accessible 24/7, fully serverless (scales to zero when idle).
+Both services are deployed on **Google Cloud Run**  publicly accessible 24/7, fully serverless (scales to zero when idle).
 
 ---
 
