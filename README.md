@@ -9,7 +9,7 @@
 | Service | URL |
 |---|---|
 | **Dashboard (Streamlit)** | [aqi-predictor-dashboard](https://aqi-predictor-dashboard-444682761540.asia-south1.run.app) |
-| **REST API (Flask)** | [aqi-predictor-api](https://aqi-predictor-api-444682761540.asia-south1.run.app) |
+
 
 Both services are deployed on **Google Cloud Run** — publicly accessible 24/7, fully serverless (scales to zero when idle).
 
